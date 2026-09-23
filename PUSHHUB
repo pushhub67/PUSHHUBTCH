@@ -6,17 +6,7 @@ local Window = Rayfield:CreateWindow({
     LoadingSubtitle = "Script by PUSH Hub",
     ConfigurationSaving = { Enabled = false },
     Discord = { Enabled = false },
-    
-    KeySystem = true,
-    KeySettings = {
-        Title = "Push Hub | Security",
-        Subtitle = "Script by PUSH Hub",
-        Note = "Masukkan key untuk menggunakan script.",
-        FileName = "PushHubKey",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = {"PUSHHUB"}
-    }
+    KeySystem = false
 })
 
 -- ================= SERVICES & VARIABLES =================
@@ -48,6 +38,13 @@ local Colors = {
     ["Red"] = Color3.fromRGB(255, 40, 40),
     ["Blue"] = Color3.fromRGB(40, 100, 255),
     ["Black"] = Color3.fromRGB(0, 0, 0)
+}
+
+-- Target limbs untuk hit normal maupun saat sleding/tackle
+local SlideLimbNames = {
+    "HumanoidRootPart", "Torso", "LowerTorso", "UpperTorso",
+    "Right Leg", "RightFoot", "RightLowerLeg", "RightUpperLeg",
+    "Left Leg", "LeftFoot", "LeftLowerLeg", "LeftUpperLeg"
 }
 
 -- ================= PING UI SETUP =================
@@ -148,38 +145,28 @@ local function ExpandHitbox(part, hrp, char)
     
     local desiredSize = State.Hitbox.Size
 
-    -- Tampilkan visual
     ApplyVisual(part, desiredSize)
 
-    -- Ukuran Fisik Bola Diperbesar
     part.Size = Vector3.new(desiredSize, desiredSize, desiredSize)
     part.CanCollide = false 
     part.Massless = true 
     part.CanQuery = true 
     part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
     
-    -- [SISTEM HITBOX GOIB / GAIB DRIBBLE LOGIC]
-    -- Bekerja dari jarak sangat jauh (Posisi 1 ke 7) & Anti-Crash saat Spam Dribble
+    -- [SISTEM HITBOX GOIB & SLEDING HIT LOGIC]
     if hrp and char then
         local distFromPlayer = (hrp.Position - part.Position).Magnitude
-        
-        -- Jangkauan Goib Ekstrem: Mencakup hingga 120 Studs (Meskipun bola jauh di posisi 7, tetap kerebut/terdribble)
         local goibReach = math.max(desiredSize * 3, 120) 
         
         if distFromPlayer <= goibReach then 
             if firetouchinterest then
-                local actionParts = {
-                    hrp,
-                    char:FindFirstChild("Right Leg") or char:FindFirstChild("RightFoot"),
-                    char:FindFirstChild("Left Leg") or char:FindFirstChild("LeftFoot")
-                }
-                
-                -- Anti-Error pcall saat spam dribble tombol cepat
+                -- Ambil semua bagian tubuh bawah & torso yang aktif saat sleding
                 pcall(function()
-                    for _, aPart in ipairs(actionParts) do
-                        if aPart then
-                            firetouchinterest(aPart, part, 0)
-                            firetouchinterest(aPart, part, 1)
+                    for _, name in ipairs(SlideLimbNames) do
+                        local limb = char:FindFirstChild(name)
+                        if limb then
+                            firetouchinterest(limb, part, 0)
+                            firetouchinterest(limb, part, 1)
                         end
                     end
                 end)
@@ -276,7 +263,6 @@ RunService.Heartbeat:Connect(function()
 
     if State.Hitbox.Enabled then
         pcall(function()
-            -- Memaksa Simulation Radius agar bola bisa di-dribble/di-steal dari jarak jauh (Hitbox Goib)
             sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
             sethiddenproperty(LocalPlayer, "MaxSimulationRadius", math.huge)
         end)
